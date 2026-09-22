@@ -8,6 +8,12 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env.config"))  # reads the .env.config file
 
 PROVIDER = os.getenv("PROVIDER", "ollama").strip().lower()

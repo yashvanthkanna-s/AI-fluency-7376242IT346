@@ -49,9 +49,15 @@ def agent(question, max_steps=8, verbose=True):
         # 3. ACT and OBSERVE: run each tool, send the result back
         for call in message.tool_calls:
             name      = call.function.name
-            arguments = json.loads(call.function.arguments or "{}")
+            try:
+                arguments = json.loads(call.function.arguments or "{}")
+            except Exception:
+                arguments = {}
             function  = TOOL_FUNCTIONS.get(name)
-            result    = function(**arguments) if function else f"Unknown tool: {name}"
+            try:
+                result    = function(**arguments) if function else f"Unknown tool: {name}"
+            except Exception as err:
+                result    = f"Error running {name}: {err}"
 
             if verbose:
                 print(f"  step {step}: {name}({list(arguments.keys())}) -> {result[:80]}...")

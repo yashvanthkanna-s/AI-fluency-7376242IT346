@@ -30,9 +30,31 @@ def read_budget() -> str:
     return json.dumps(budget, indent=2)
 
 
-def calculate_totals(expenses_json: str) -> str:
+def _load_expenses_data(expenses_json=None):
+    if expenses_json:
+        try:
+            return json.loads(expenses_json)
+        except Exception:
+            pass
+    filepath = os.path.join(DATA_DIR, "expenses.json")
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_budget_data(budget_json=None):
+    if budget_json:
+        try:
+            return json.loads(budget_json)
+        except Exception:
+            pass
+    filepath = os.path.join(DATA_DIR, "budget.json")
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def calculate_totals(expenses_json: str = None) -> str:
     """Calculate total spending and per-category totals from expense data."""
-    expenses = json.loads(expenses_json)
+    expenses = _load_expenses_data(expenses_json)
     category_totals = {}
     total = 0
     for exp in expenses:
@@ -42,10 +64,17 @@ def calculate_totals(expenses_json: str) -> str:
     return json.dumps({"total_spent": total, "category_totals": category_totals}, indent=2)
 
 
-def check_budget(totals_json: str, budget_json: str) -> str:
+def check_budget(totals_json: str = None, budget_json: str = None) -> str:
     """Compare spending totals against budget limits and find violations."""
-    totals = json.loads(totals_json)
-    budget = json.loads(budget_json)
+    budget = _load_budget_data(budget_json)
+    if totals_json:
+        try:
+            totals = json.loads(totals_json)
+        except Exception:
+            totals = json.loads(calculate_totals())
+    else:
+        totals = json.loads(calculate_totals())
+
     results = {
         "total_spent": totals["total_spent"],
         "monthly_budget": budget["monthly_budget"],
@@ -61,17 +90,24 @@ def check_budget(totals_json: str, budget_json: str) -> str:
     return json.dumps(results, indent=2)
 
 
-def filter_expenses(expenses_json: str, category: str) -> str:
+def filter_expenses(category: str = "", expenses_json: str = None) -> str:
     """Filter expenses by a specific category."""
-    expenses = json.loads(expenses_json)
-    filtered = [e for e in expenses if e["category"].lower() == category.lower()]
+    expenses = _load_expenses_data(expenses_json)
+    if category:
+        filtered = [e for e in expenses if e.get("category", "").lower() == category.lower()]
+    else:
+        filtered = expenses
     return json.dumps(filtered, indent=2)
 
 
-def get_top_expenses(expenses_json: str, n: int = 5) -> str:
+def get_top_expenses(n: int = 5, expenses_json: str = None) -> str:
     """Get the top N most expensive items."""
-    expenses = json.loads(expenses_json)
-    sorted_exp = sorted(expenses, key=lambda x: x["amount"], reverse=True)
+    expenses = _load_expenses_data(expenses_json)
+    try:
+        n = int(n)
+    except Exception:
+        n = 5
+    sorted_exp = sorted(expenses, key=lambda x: x.get("amount", 0), reverse=True)
     return json.dumps(sorted_exp[:n], indent=2)
 
 
@@ -119,28 +155,28 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {
         "name": "calculate_totals",
-        "description": "Calculate total spending and per-category totals from expense data.",
+        "description": "Calculate total spending and per-category totals from the private expense data.",
         "parameters": {"type": "object",
-                        "properties": {"expenses_json": {"type": "string", "description": "JSON string of expenses array"}},
-                        "required": ["expenses_json"]}}},
+                        "properties": {},
+                        "required": []}}},
     {"type": "function", "function": {
         "name": "check_budget",
-        "description": "Compare spending totals against budget limits. Identifies over-budget categories.",
+        "description": "Compare spending totals against budget limits. Identifies over-budget categories and differences.",
         "parameters": {"type": "object",
-                        "properties": {"totals_json": {"type": "string"}, "budget_json": {"type": "string"}},
-                        "required": ["totals_json", "budget_json"]}}},
+                        "properties": {},
+                        "required": []}}},
     {"type": "function", "function": {
         "name": "filter_expenses",
-        "description": "Filter expenses to show only a specific category.",
+        "description": "Filter expenses to show only a specific category (e.g. Food, Transport, Shopping).",
         "parameters": {"type": "object",
-                        "properties": {"expenses_json": {"type": "string"}, "category": {"type": "string"}},
-                        "required": ["expenses_json", "category"]}}},
+                        "properties": {"category": {"type": "string", "description": "Category name to filter by"}},
+                        "required": ["category"]}}},
     {"type": "function", "function": {
         "name": "get_top_expenses",
         "description": "Get the top N most expensive purchases.",
         "parameters": {"type": "object",
-                        "properties": {"expenses_json": {"type": "string"}, "n": {"type": "integer"}},
-                        "required": ["expenses_json"]}}},
+                        "properties": {"n": {"type": "integer", "description": "Number of top expenses to return (e.g. 3 or 5)"}},
+                        "required": []}}},
     {"type": "function", "function": {
         "name": "calculator",
         "description": "Evaluate an arithmetic expression using + - * / and brackets.",
