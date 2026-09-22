@@ -1,0 +1,9 @@
+.env
+.env/
+.env.config
+.venv/
+__pycache__/
+*.pyc
+day1_lab/.env
+day1_lab/.venv/
+day1_lab/__pycache__/
